@@ -65,7 +65,7 @@ pub enum DepKind {
 pub struct Dep {
     pub name: String,
     pub kind: DepKind,
-    /// `true` if the dependency is a workspace member (a path dependency).
+    /// `true` only for an actual workspace member; sibling path libraries are external.
     pub workspace: bool,
 }
 
@@ -126,7 +126,8 @@ pub fn from_metadata(meta: &Value) -> Result<Vec<Crate>, String> {
                     Some("build") => DepKind::Build,
                     _ => DepKind::Normal,
                 };
-                let workspace = members.contains(&name.as_str()) || d["path"].is_string();
+                // `--no-deps` lists only members; a path alone does not make one.
+                let workspace = members.contains(&name.as_str());
                 Dep { name, kind, workspace }
             })
             .collect();
@@ -205,5 +206,23 @@ mod tests {
         assert!(nodes.deps[0].workspace && !nodes.deps[1].workspace);
         assert_eq!(nodes.deps[2].kind, Dev);
         assert!(check(&g).is_empty());
+    }
+    #[test]
+    fn external_path_libraries_are_not_workspace_members() {
+        let meta = serde_json::json!({"packages": [
+            {"name":"materialcraft-core", "dependencies":[]},
+            {"name":"materialcraft-render", "dependencies":[
+                {"name":"materialcraft-core", "kind":null, "path":"/fixture/app/crates/core"},
+                {"name":"craft-stereo-camera", "kind":null, "path":"/fixture/shared/crates/stereo-camera"}
+            ]}
+        ]});
+        let graph = from_metadata(&meta).unwrap();
+        assert!(check(&graph).is_empty(), "a sibling shared library is external, not an unknown app crate");
+        let renderer = graph.iter().find(|c| c.name == "materialcraft-render").unwrap();
+        assert!(renderer.deps[0].workspace);
+        assert!(!renderer.deps[1].workspace);
+        let mut forbidden = meta;
+        forbidden["packages"][1]["dependencies"][1]["name"] = serde_json::json!("egui");
+        assert!(!check(&from_metadata(&forbidden).unwrap()).is_empty(), "an external path must still obey the UI-toolkit ban");
     }
 }
