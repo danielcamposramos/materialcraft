@@ -8,6 +8,7 @@
 
 pub mod ibl;
 pub mod preview;
+pub mod stereo;
 
 mod displacement;
 mod relief;

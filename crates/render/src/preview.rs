@@ -483,6 +483,27 @@ pub fn render(scene: &Scene, maps: &Maps, light: &Lighting, s: &Settings, w: u32
 /// returns `None`: a frame the viewer no longer needs (the camera moved, the view was resized)
 /// stops holding the CPU.
 pub fn render_cancellable(scene: &Scene, maps: &Maps, light: &Lighting, s: &Settings, w: u32, h: u32, cancel: &AtomicBool) -> Option<Vec<u8>> {
+    render_samples(scene, maps, light, s, w, h, cancel, None, 1).map(|rendered| rendered.pixels)
+}
+
+pub(crate) struct Samples {
+    pub pixels: Vec<u8>,
+    pub primary_rays: [usize; 2],
+    pub key_light: Vec3,
+}
+
+/// The central light and immutable scene inputs are shared; only the sample ray changes.
+pub(crate) fn render_samples(
+    scene: &Scene,
+    maps: &Maps,
+    light: &Lighting,
+    s: &Settings,
+    w: u32,
+    h: u32,
+    cancel: &AtomicBool,
+    eye_rays: Option<[craft_stereo_camera::RayGrid; 2]>,
+    eye_count: u32,
+) -> Option<Samples> {
     let (w, h) = (w.clamp(1, 4096), h.clamp(1, 4096));
     let cam = camera(scene, s);
     let aspect = w as f32 / h as f32;
@@ -493,18 +514,37 @@ pub fn render_cancellable(scene: &Scene, maps: &Maps, light: &Lighting, s: &Sett
     let fwd = cam.ray(Vec2::ZERO, aspect).dir;
     let right = fwd.cross(Vec3::Y).normalize_or(Vec3::X);
     let key = (right * -0.6 + right.cross(fwd) * 0.75 - fwd * 0.5).normalize_or_zero();
-    let mut out = vec![0u8; (w * h * 4) as usize];
-    out.par_chunks_mut(w as usize * 4).enumerate().for_each(|(y, row)| {
+    let output_width = w * eye_count;
+    let valid = AtomicBool::new(true);
+    let counts: [std::sync::atomic::AtomicUsize; 2] = std::array::from_fn(|_| std::sync::atomic::AtomicUsize::new(0));
+    let mut out = Vec::new();
+    out.try_reserve_exact((output_width * h * 4) as usize).ok()?;
+    out.resize((output_width * h * 4) as usize, 0u8);
+    out.par_chunks_mut(output_width as usize * 4).enumerate().for_each(|(y, row)| {
         if cancel.load(Ordering::Relaxed) {
             return;
         }
-        for x in 0..w as usize {
+        let mut row_counts = [0usize; 2];
+        for output_x in 0..output_width as usize {
+            let eye = output_x / w as usize;
+            let x = output_x % w as usize;
             let mut acc = Vec3::ZERO;
             for sy in 0..ss {
                 for sx in 0..ss {
                     let px = (x as f32 + (sx as f32 + 0.5) / ss as f32) / w as f32 * 2.0 - 1.0;
                     let py = 1.0 - (y as f32 + (sy as f32 + 0.5) / ss as f32) / h as f32 * 2.0;
-                    let ray = cam.ray(Vec2::new(px, py), aspect);
+                    let ray = if let Some(eyes) = eye_rays {
+                        let Some(ray) = eyes[eye].ray([px, py]) else {
+                            valid.store(false, Ordering::Relaxed);
+                            return;
+                        };
+                        materialcraft_geom::Ray { origin: ray.origin, dir: ray.direction }
+                    } else {
+                        cam.ray(Vec2::new(px, py), aspect)
+                    };
+                    if eye_count == 2 {
+                        row_counts[eye] += 1;
+                    }
                     let bg = backdrop(Vec2::new(px, py));
                     let p = Px { key, jitter: jitter(x as u32 * ss + sx, y as u32 * ss + sy) };
                     let miss = match (s.show_env, bg_env) {
@@ -527,12 +567,21 @@ pub fn render_cancellable(scene: &Scene, maps: &Maps, light: &Lighting, s: &Sett
                 let d = if s.alpha_view { v } else { linear_to_srgb(aces(v)) };
                 (d.clamp(0.0, 1.0) * 255.0 + 0.5) as u8
             };
-            if let Some(px) = row.get_mut(x * 4..x * 4 + 4) {
+            if let Some(px) = row.get_mut(output_x * 4..output_x * 4 + 4) {
                 px.copy_from_slice(&[q(c.x), q(c.y), q(c.z), 255]);
             }
         }
+        if eye_count == 2 {
+            for (counter, count) in counts.iter().zip(row_counts) {
+                counter.fetch_add(count, Ordering::Relaxed);
+            }
+        }
     });
-    if cancel.load(Ordering::Relaxed) { None } else { Some(out) }
+    if cancel.load(Ordering::Relaxed) || !valid.load(Ordering::Relaxed) {
+        None
+    } else {
+        Some(Samples { pixels: out, primary_rays: counts.map(|n| n.load(Ordering::Relaxed)), key_light: key })
+    }
 }
 
 #[cfg(test)]
