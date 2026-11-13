@@ -55,6 +55,7 @@ const RELIEF_TRIANGLES: usize = if cfg!(target_arch = "wasm32") { 120_000 } else
 
 #[derive(Default)]
 pub struct View3dState {
+    pub(super) native_rect: Option<Rect>,
     scene: Option<(String, Arc<Scene>)>,
     /// The scene displaced by the height output, keyed by what it was built from (see [`relief_key`]).
     displaced: Option<(u64, Arc<Scene>)>,
@@ -77,7 +78,7 @@ pub struct View3dState {
     pub renders: u64,
     /// The last frame shown (RGBA8, for `view.screenshot`).
     pub shown: Option<(u32, u32, Vec<u8>)>,
-    show_env: bool,
+    pub(super) show_env: bool,
     /// Index into [`MOVE_LEVELS`] of the last moving frame
     move_level: usize,
 }
@@ -238,6 +239,7 @@ pub fn show(app: &mut MaterialCraftApp, ui: &mut Ui) {
     let avail = ui.available_size();
     let (rect, resp) = ui.allocate_exact_size(vec2(avail.x, (avail.y - 22.0).max(40.0)), Sense::click_and_drag());
     crate::widgets::name(&resp, egui::Role::Image, "3D view");
+    app.view3d.native_rect = Some(rect);
     let graph_hover = resp.dnd_hover_payload::<crate::graph_drag_payload::GraphDragPayload>().is_some();
     if let Some(graph) = crate::widgets::dnd_release::<crate::graph_drag_payload::GraphDragPayload>(&resp)
         && (graph.document == app.session.document_id || app.run("package.activate", json!({"document": graph.document})).is_some())
@@ -357,7 +359,7 @@ fn frame_rect(rect: Rect, rendered: Option<(u32, u32)>) -> Rect {
     }
 }
 
-fn content_key(app: &MaterialCraftApp, w: u32, h: u32, show_env: bool, relief_shown: Option<u64>) -> u64 {
+pub(super) fn content_key(app: &MaterialCraftApp, w: u32, h: u32, show_env: bool, relief_shown: Option<u64>) -> u64 {
     use std::hash::{DefaultHasher, Hash, Hasher};
     let mut hs = DefaultHasher::new();
     let v = &app.session.view3d;
@@ -467,7 +469,7 @@ fn relief_key(app: &MaterialCraftApp, scene_key: &str, maps: &Maps) -> Option<u6
 }
 
 /// Collect a finished relief build or start a missing one; returns the key of the displaced scene shown (`None` = plain mesh).
-fn update_relief(app: &mut MaterialCraftApp, ctx: &egui::Context) -> Option<u64> {
+pub(super) fn update_relief(app: &mut MaterialCraftApp, ctx: &egui::Context) -> Option<u64> {
     let (scene_key, base) = base_scene(app);
     let maps = Maps::from_usages(app.session.material_maps());
     let wanted = relief_key(app, &scene_key, &maps);
@@ -522,7 +524,7 @@ fn start_relief(app: &mut MaterialCraftApp, _ctx: &egui::Context, key: u64, base
 }
 
 /// The scene, lighting, maps and settings of the current view: the displaced scene when it is current, else the plain one.
-fn inputs(app: &mut MaterialCraftApp, supersample: u32) -> Option<(Arc<Scene>, Arc<Lighting>, Maps, Settings)> {
+pub(super) fn inputs(app: &mut MaterialCraftApp, supersample: u32) -> Option<(Arc<Scene>, Arc<Lighting>, Maps, Settings)> {
     let (scene_key, base) = base_scene(app);
     let v = app.session.view3d.clone();
     if app.view3d.light.as_ref().is_none_or(|l| l.name != v.environment) {
@@ -555,7 +557,7 @@ fn inputs(app: &mut MaterialCraftApp, supersample: u32) -> Option<(Arc<Scene>, A
 }
 
 /// Texture pixels for `rect` at `scale` pixels per point.
-fn pixels(rect: Rect, scale: f32) -> (u32, u32) {
+pub(super) fn pixels(rect: Rect, scale: f32) -> (u32, u32) {
     (((rect.width() * scale) as u32).clamp(16, 4096), ((rect.height() * scale) as u32).clamp(16, 4096))
 }
 

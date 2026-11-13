@@ -139,3 +139,6 @@ pub use function_graph_target::FunctionGraphTarget;
 pub use pattern_edit::PatternEdit;
 
 mod exposed_input_commands;
+
+mod stereo_cmds;
+pub use stereo_cmds::Settings as StereoSettings;

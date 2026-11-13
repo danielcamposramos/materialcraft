@@ -77,6 +77,7 @@ pub fn session(session: &Session, requested_graph: Option<usize>) -> J {
         "selection": session.selection.iter().map(|index| index.0).collect::<Vec<_>>(),
         "view2d": session.view2d,
         "view3d": session.view3d,
+        "stereo": session.stereo,
         "material3d": {
             "assignments": session.material_preview,
             "channels": session.material_preview.sources(&session.pkg).into_iter().map(|(channel, source)| {

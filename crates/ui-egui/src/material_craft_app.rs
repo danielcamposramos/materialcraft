@@ -18,6 +18,8 @@ pub struct MaterialCraftApp {
     /// The graph editor's gesture state
     pub graph: graph::GraphView,
     pub view3d: view3d::View3dState,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub stereo_view: Option<crate::stereo_view::View>,
     pub view2d: view2d::View2dState,
     /// Embedded graph editors in the main graph panel
     pub pattern_editor: Option<pattern::PatternEditor>,
@@ -95,6 +97,8 @@ impl MaterialCraftApp {
             thumbs: thumbs::Thumbs::default(),
             graph: graph::GraphView::default(),
             view3d: view3d::View3dState::default(),
+            #[cfg(not(target_arch = "wasm32"))]
+            stereo_view: None,
             view2d: view2d::View2dState::default(),
             function_editor: None,
             inspected_graph: None,
@@ -417,6 +421,8 @@ impl MaterialCraftApp {
         self.apply_prefs();
         cook::drive(self, ctx);
         #[cfg(not(target_arch = "wasm32"))]
+        crate::stereo_view::tick(self, ctx);
+        #[cfg(not(target_arch = "wasm32"))]
         self.autosave(now);
         #[cfg(not(target_arch = "wasm32"))]
         crate::updates_ui::tick(self, ctx);
@@ -453,6 +459,8 @@ impl MaterialCraftApp {
         self.ui.explorer.hovered = false;
         egui::CentralPanel::default().frame(egui::Frame::NONE.fill(theme::Tokens::get(&ctx).chrome)).show(ui, |ui| docking::show(self, ui));
         windows::show(self, &ctx);
+        #[cfg(not(target_arch = "wasm32"))]
+        crate::stereo_view::settings(self, &ctx);
         #[cfg(not(target_arch = "wasm32"))]
         if self.window_layout.is_some() {
             crate::window_controls::resize_zones(ui);

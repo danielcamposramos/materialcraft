@@ -42,6 +42,9 @@ rust-version = "1.95"
 repository = "https://github.com/storytold/materialcraft"
 
 [workspace.dependencies]
+craft-stereo-window = { path = "../craft-libs-material/crates/stereo-window" }
+craft-i18n = { git = "https://github.com/storytold/craft-libs", rev = "6e03f65bf45181db77ba6229716e6624db9eb25b" }
+craft-fonts-build = { git = "https://github.com/storytold/craft-libs", rev = "6e03f65bf45181db77ba6229716e6624db9eb25b" }
 # Pure shared camera algebra, MIT OR Apache-2.0; no desktop dependency.
 craft-stereo-camera = { path = "../craft-libs-material/crates/stereo-camera" }
 resvg = { version = "0.47", default-features = false }

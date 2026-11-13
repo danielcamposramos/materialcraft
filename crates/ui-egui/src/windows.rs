@@ -178,7 +178,7 @@ fn preferences(app: &mut MaterialCraftApp, ctx: &egui::Context) {
         let p = &mut app.ui.prefs;
         let current_lang = crate::i18n::current();
         crate::widgets::combo(ui, tr("Language"), current_lang.name, |ui| {
-            for l in &crate::i18n::LANGUAGES {
+            for l in crate::i18n::LANGUAGES.iter().filter(|l| crate::i18n::available(l.code)) {
                 if ui.selectable_label(p.language == l.code, l.name).clicked() {
                     p.language = l.code.to_owned();
                     crate::i18n::set_language(&p.language);

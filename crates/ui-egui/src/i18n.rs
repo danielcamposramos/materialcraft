@@ -5,8 +5,8 @@
 
 use std::collections::HashMap;
 use std::fmt::Display;
-use std::sync::OnceLock;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{LazyLock, OnceLock};
 
 mod ar;
 
@@ -21,16 +21,54 @@ pub struct Language {
     pub table: &'static [(&'static str, &'static str)],
 }
 
-const COUNT: usize = 2;
+const COUNT: usize = 11;
 
-pub static LANGUAGES: [Language; COUNT] =
-    [Language { code: "en", name: "English", english: "English", table: &[] }, Language { code: "ar", name: "العربية", english: "Arabic", table: ar::TABLE }];
+pub static LANGUAGES: [Language; COUNT] = [
+    Language { code: "en", name: "English", english: "English", table: &[] },
+    Language { code: "ar", name: "العربية", english: "Arabic", table: ar::TABLE },
+    Language { code: "pl", name: "Polski", english: "Polish", table: &[] },
+    Language { code: "pt-BR", name: "Português (Brasil)", english: "Portuguese (Brazil)", table: &[] },
+    Language { code: "fr", name: "Français", english: "French", table: &[] },
+    Language { code: "de", name: "Deutsch", english: "German", table: &[] },
+    Language { code: "es", name: "Español", english: "Spanish", table: &[] },
+    Language { code: "ja", name: "日本語", english: "Japanese", table: &[] },
+    Language { code: "ko", name: "한국어", english: "Korean", table: &[] },
+    Language { code: "zh-Hans", name: "简体中文", english: "Chinese (Simplified)", table: &[] },
+    Language { code: "zh-Hant", name: "繁體中文", english: "Chinese (Traditional)", table: &[] },
+];
+
+include!(concat!(env!("OUT_DIR"), "/craft_i18n.rs"));
+static SHARED: LazyLock<craft_i18n::I18n> = LazyLock::new(|| {
+    let codes: Vec<_> = LANGUAGES.iter().map(|l| l.code).collect();
+    let (lookup, problems) = craft_i18n::I18n::new(CRAFT_I18N, &codes);
+    for problem in problems {
+        log::warn!("translation catalog: {problem}");
+    }
+    lookup
+});
+
+pub fn available(code: &str) -> bool {
+    matches!(code, "en" | "ar") || SHARED.from_code(code).is_some()
+}
+
+/// Explicit language lookup for label and native-title audits, without changing UI state.
+pub fn text_for<'a>(code: &str, text: &'a str) -> &'a str {
+    let Some((index, language)) = LANGUAGES.iter().enumerate().find(|(_, l)| l.code.eq_ignore_ascii_case(code)) else { return text };
+    if !language.table.is_empty() {
+        let local = MAPS[index].get_or_init(|| language.table.iter().copied().collect());
+        if let Some(value) = local.get(text) {
+            return value;
+        }
+    }
+    SHARED.from_code(language.code).map_or(text, |lang| SHARED.t(lang, text))
+}
 
 static MAPS: [OnceLock<HashMap<&'static str, &'static str>>; COUNT] = [const { OnceLock::new() }; COUNT];
 static CURRENT: AtomicUsize = AtomicUsize::new(0);
 
 /// Switch the UI language (unknown codes fall back to English).
 pub fn set_language(code: &str) {
+    let code = language_for_locale(code);
     CURRENT.store(LANGUAGES.iter().position(|l| l.code == code).unwrap_or(0), Ordering::Relaxed);
 }
 
@@ -51,12 +89,7 @@ pub fn is_rtl() -> bool {
 
 /// `text` in the current language (unchanged when it has no translation).
 pub fn tr(text: &str) -> &str {
-    let i = CURRENT.load(Ordering::Relaxed);
-    let (Some(lang), Some(map)) = (LANGUAGES.get(i), MAPS.get(i)) else { return text };
-    if lang.table.is_empty() {
-        return text;
-    }
-    map.get_or_init(|| lang.table.iter().copied().collect()).get(text).copied().unwrap_or(text)
+    text_for(current().code, text)
 }
 
 /// Marks a static string for translation where it is defined (gettext's `N_`); it is translated
@@ -90,11 +123,11 @@ pub fn trf(template: &str, args: &[(&str, &dyn Display)]) -> String {
 
 /// The supported language for a locale such as "ar-EG", "ar-SA" ("en" when none matches).
 pub fn language_for_locale(locale: &str) -> &'static str {
-    let lang = locale.split(['-', '_', '.', '@']).next().unwrap_or("").to_ascii_lowercase();
-    match lang.as_str() {
-        "ar" => "ar",
-        l => LANGUAGES.iter().find(|x| x.code == l).map_or("en", |x| x.code),
+    let base = locale.split(['-', '_', '.', '@']).next().unwrap_or_default();
+    if base.eq_ignore_ascii_case("ar") {
+        return "ar";
     }
+    SHARED.match_tag(locale).and_then(|language| LANGUAGES.iter().find(|l| l.code.eq_ignore_ascii_case(SHARED.code(language))).map(|l| l.code)).unwrap_or("en")
 }
 
 /// The operating system's (or browser's) UI language, for the first run.
@@ -116,7 +149,7 @@ mod tests {
         assert_eq!(language_for_locale("ar-EG"), "ar");
         assert_eq!(language_for_locale("ar_SA.UTF-8"), "ar");
         assert_eq!(language_for_locale("en-US"), "en");
-        assert_eq!(language_for_locale("fr-FR"), "en");
+        assert_eq!(language_for_locale("fr-FR"), if available("fr") { "fr" } else { "en" });
     }
 
     #[test]

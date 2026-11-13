@@ -7,7 +7,12 @@
 
 use std::sync::Arc;
 
+use craft_fonts_build::EmbeddedFace;
+use craft_ui::fonts::{CraftFace, I18nScripts, SystemFonts, UiFonts as SharedFonts};
 use egui::{FontData, FontFamily};
+
+/// The legacy regular faces selected from the app's CI-pinned font manifest.
+pub static CJK_FONTS: &[EmbeddedFace] = include!(concat!(env!("OUT_DIR"), "/craft_fonts.rs"));
 
 /// Candidate system font files: (path, face index in a collection).
 #[cfg(not(target_arch = "wasm32"))]
@@ -42,13 +47,51 @@ fn system_files() -> Vec<(std::path::PathBuf, u32)> {
 #[derive(Default)]
 pub struct UiFonts {
     installed: bool,
+    cjk_active: bool,
+    cjk_key: Option<(String, bool)>,
     data: Option<Arc<FontData>>,
 }
 
 impl UiFonts {
     /// Update fallback fonts according to active language and whether the preferences dialog is open.
     pub fn update(&mut self, ctx: &egui::Context, language: &str, preferences_open: bool) {
+        let base = language.split(['-', '_']).next().unwrap_or_default().to_ascii_lowercase();
+        self.cjk_active |= (matches!(base.as_str(), "ja" | "ko" | "zh") || preferences_open) && !CJK_FONTS.is_empty();
         let want_arabic = language == "ar" || preferences_open;
+        if self.cjk_active {
+            if want_arabic && self.data.is_none() {
+                let _ = self.load_arabic();
+            }
+            let key = (language.to_owned(), self.data.is_some());
+            if self.cjk_key.as_ref() != Some(&key) {
+                let mut defs = crate::theme::font_definitions();
+                if let Some(data) = &self.data {
+                    let name = "script-Arab".to_owned();
+                    defs.font_data.insert(name.clone(), data.clone());
+                    defs.families.entry(FontFamily::Proportional).or_default().push(name.clone());
+                    defs.families.entry(FontFamily::Monospace).or_default().push(name);
+                }
+                let faces: Vec<CraftFace> = CJK_FONTS.iter().copied().map(Into::into).collect();
+                let mut shared = SharedFonts::new(&I18nScripts)
+                    .craft_faces(&faces)
+                    .ui_language(language)
+                    .languages(&crate::i18n::LANGUAGES.each_ref().map(|l| l.code))
+                    .system_fonts(SystemFonts::Off);
+                // Keep the app's existing Latin and loaded Arabic faces, in their original order.
+                // The shared owner supplies CJK ordering and row fitting, not another app engine.
+                for (family, names) in &defs.families {
+                    for name in names {
+                        if let Some(data) = defs.font_data.get(name) {
+                            shared = shared.app_face(name, data.as_ref().clone(), std::slice::from_ref(family));
+                        }
+                    }
+                }
+                shared.install(ctx);
+                self.cjk_key = Some(key);
+                self.installed = self.data.is_some();
+            }
+            return;
+        }
         if !want_arabic || self.installed {
             return;
         }

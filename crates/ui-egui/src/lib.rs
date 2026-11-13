@@ -62,3 +62,6 @@ pub use state::UiState;
 pub use toast::Toast;
 #[cfg(not(target_arch = "wasm32"))]
 pub use user_directory::user_dir;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod stereo_view;

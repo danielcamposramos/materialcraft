@@ -330,6 +330,8 @@ fn handle_inner(app: &mut MaterialCraftApp, ctx: &egui::Context, method: &str, p
                 "toasts": app.toasts.iter().map(|t| json!({"text": t.text, "error": t.error})).collect::<Vec<_>>(),
             }))
         }
+        #[cfg(not(target_arch = "wasm32"))]
+        "stereo.inspect" => ok(app.stereo_view.as_ref().map(|view| view.inspect()).unwrap_or(json!({"pending":false,"shown":null}))),
         "ui.menu.list" => ok(crate::menus::list(app, ctx)),
         "ui.menu.invoke" => {
             let Some(id) = p.get("id").and_then(Value::as_str) else { return err("`id` is required") };

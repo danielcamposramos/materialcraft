@@ -41,3 +41,14 @@ These come from Rust crate dependencies (not files in this repository) and keep 
 |---|---|---|---|---|
 | Phosphor Icons (regular), via the `egui-phosphor` crate (vendored in `vendor/egui-phosphor` for egui 0.37) | Every UI icon (toolbars, panels, node quick-insert buttons) | Phosphor Icons (Helena Zhang, Tobias Fried) | https://phosphoricons.com, https://github.com/amPerl/egui-phosphor | MIT (icons); crate MIT OR Apache-2.0 |
 | egui default fonts (Ubuntu-Light, Hack, Noto Emoji, emoji-icon-font), via `epaint_default_fonts` | UI text | Canonical / Source Foundry / Google / Jessie Jung | https://github.com/emilk/egui | Ubuntu Font Licence 1.0, MIT + Bitstream Vera License, OFL 1.1, MIT |
+
+## Optional interface build inputs
+
+| Asset | Used for | Author | Source | License |
+|---|---|---|---|---|
+| BIZ UDPGothic Regular | Japanese interface fallback, including the stereo controls | The BIZ UDGothic Project Authors | [craft-fonts 3d9ab3a](https://github.com/storytold/craft-fonts/tree/3d9ab3a132ed0eff457e424226a435a901da30d3/fonts/biz-ud-pgothic), original source and hash in its manifest | OFL-1.1; the existing package licence collector ships OFL-biz-ud-pgothic.txt |
+| Noto Sans CJK SC Regular | CJK interface fallback, including Korean and Traditional Chinese glyph coverage; not a dedicated regional typeface | The Noto Project Authors | [craft-fonts 3d9ab3a](https://github.com/storytold/craft-fonts/tree/3d9ab3a132ed0eff457e424226a435a901da30d3/fonts/noto-sans-cjk-sc), original source and hash in its manifest | OFL-1.1; the existing package licence collector ships OFL-noto-sans-cjk-sc.txt |
+| `common.tsv` and the explicitly partial `materialcraft.tsv`, embedded through `CRAFT_I18N_DIR` | Stereo labels and diagnostics in the selected interface language; the original Arabic table keeps priority | craft-i18n contributors, as recorded in its attribution index; new MaterialCraft rows by Daniel Campos Ramos | [craft-i18n](https://github.com/storytold/craft-i18n); its optional checkout supplies these tables | MIT OR Apache-2.0 |
+
+Font files remain in craft-fonts; this repository adds no font binary.
+The new MaterialCraft catalogs translate these controls only, not the complete application.

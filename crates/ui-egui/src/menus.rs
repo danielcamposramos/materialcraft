@@ -137,6 +137,12 @@ pub const CATALOG: &[MenuItem] = &[
     it("Windows", "Properties", "ui.view.properties", None),
     it("Windows", "Console", "ui.view.console", None),
     it("Windows", "3D View", "ui.view.3d", None),
+    #[cfg(not(target_arch = "wasm32"))]
+    it("Windows", "Enable 3D", "ui.stereo.toggle", None),
+    #[cfg(not(target_arch = "wasm32"))]
+    it("Windows", "Render resolution per eye", "ui.stereo.resolution", None),
+    #[cfg(not(target_arch = "wasm32"))]
+    it("Windows", "Desktop Display Settings", "ui.stereo.display", None),
     it("Windows", "2D View", "ui.view.2d", None),
     it("Windows", "Library", "ui.view.library", None),
     it("Windows", "History", "ui.view.history", None),
@@ -220,6 +226,20 @@ pub fn invoke(app: &mut MaterialCraftApp, ctx: &egui::Context, id: &str) {
         "ui.export" => crate::export::open(app, crate::export::ExportTab::FromGraph),
         "ui.quit" => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
         "ui.preferences" => app.ui.windows.preferences = true,
+        #[cfg(not(target_arch = "wasm32"))]
+        "ui.stereo.toggle" => {
+            app.run("view.stereo", serde_json::json!({"enabled":!app.session.stereo.enabled}));
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        "ui.stereo.resolution" => {
+            app.stereo_view.get_or_insert_with(Default::default).options_open = true;
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        "ui.stereo.display" => {
+            if let Err(error) = crate::stereo_view::display_settings() {
+                app.toast(error, true);
+            }
+        }
         "ui.view.graph" => {}
         "ui.resetLayout" => app.ui.dock = crate::docking::Dock::default(),
         "ui.closeAll" => crate::unsaved::guard(app, crate::unsaved::Guarded::Menu { id: id.to_string() }),
@@ -362,6 +382,8 @@ fn menu_item(app: &mut MaterialCraftApp, context: &egui::Context, ui: &mut egui:
     }
     let checked = match item.id {
         "ui.view.graph" => Some(true),
+        #[cfg(not(target_arch = "wasm32"))]
+        "ui.stereo.toggle" => Some(app.session.stereo.enabled),
         "ui.graph.snapToGrid" => Some(app.ui.prefs.snap_to_grid),
         id if id.starts_with("ui.preview.") => {
             id.strip_prefix("ui.preview.").and_then(|size| size.parse::<u32>().ok()).map(|size| size == app.ui.prefs.preview_size)
