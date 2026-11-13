@@ -33,6 +33,11 @@ images, materials, sample graphs, presets, environments) may ever be added.
 | `docs/brand/artcraft-*.svg`, `docs/brand/artcraft-*.png` | ArtCraft logo and mark | ArtCraft Team | storytold/craftrules `assets/brand/` | ArtCraft brand terms, not open source ([`docs/brand/LICENSE-brand.txt`](docs/brand/LICENSE-brand.txt)) |
 | `crates/nodes/src/atomic/text.rs` (`GLYPHS`) | Single-stroke vector font of the Text node (A–Z, a–z, 0–9, punctuation) | MaterialCraft contributors | Original, designed as stroke data in code | MIT OR Apache-2.0 |
 
+## Original procedural test scenes
+
+`crates/render/tests/stereo.rs` builds two-depth quads procedurally to verify coherent projections, sample counts and lighting.
+The geometry is original work by Daniel Campos Ramos under MIT OR Apache-2.0; it uses no external model, image or location data.
+
 ## Third-party assets compiled into the binary
 
 These come from Rust crate dependencies (not files in this repository) and keep their licenses.
