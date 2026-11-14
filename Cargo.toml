@@ -42,11 +42,11 @@ rust-version = "1.95"
 repository = "https://github.com/storytold/materialcraft"
 
 [workspace.dependencies]
-craft-stereo-window = { path = "../craft-libs-material/crates/stereo-window" }
-craft-i18n = { git = "https://github.com/storytold/craft-libs", rev = "6e03f65bf45181db77ba6229716e6624db9eb25b" }
-craft-fonts-build = { git = "https://github.com/storytold/craft-libs", rev = "6e03f65bf45181db77ba6229716e6624db9eb25b" }
+craft-stereo-window = { path = "../craft-libs-common/crates/stereo-window" }
+craft-i18n = { path = "../craft-libs-common/crates/i18n" }
+craft-fonts-build = { path = "../craft-libs-common/crates/fonts-build" }
 # Pure shared camera algebra, MIT OR Apache-2.0; no desktop dependency.
-craft-stereo-camera = { path = "../craft-libs-material/crates/stereo-camera" }
+craft-stereo-camera = { path = "../craft-libs-common/crates/stereo-camera" }
 resvg = { version = "0.47", default-features = false }
 # internal
 materialcraft-core = { path = "crates/core" }
@@ -91,18 +91,18 @@ getrandom = "0.3"
 # Shared Craft egui components (widget palette, icon buttons, panel docking): storytold/craft-libs,
 # MIT OR Apache-2.0, every craft-libs crate pinned to one rev.
 egui_kittest = "0.37"
-craft-ui = { git = "https://github.com/storytold/craft-libs", rev = "6e03f65bf45181db77ba6229716e6624db9eb25b", features = ["serde"] }
+craft-ui = { path = "../craft-libs-common/crates/ui", features = ["serde"] }
 # Keyboard bindings (chords, dispatch and display text): storytold/craft-libs, MIT OR Apache-2.0.
-craft-keymap = { git = "https://github.com/storytold/craft-libs", rev = "6e03f65bf45181db77ba6229716e6624db9eb25b", features = ["egui"] }
+craft-keymap = { path = "../craft-libs-common/crates/keymap", features = ["egui"] }
 # Native dialogs that do not block the event loop: storytold/craft-libs, MIT OR Apache-2.0.
-craft-dialogs = { git = "https://github.com/storytold/craft-libs", rev = "6e03f65bf45181db77ba6229716e6624db9eb25b" }
+craft-dialogs = { path = "../craft-libs-common/crates/dialogs" }
 # The platform quit and the macOS Quit menu item: storytold/craft-libs, MIT OR Apache-2.0.
-craft-quit = { git = "https://github.com/storytold/craft-libs", rev = "6e03f65bf45181db77ba6229716e6624db9eb25b", features = ["egui"] }
-craft-menu = { git = "https://github.com/storytold/craft-libs", rev = "6e03f65bf45181db77ba6229716e6624db9eb25b" }
+craft-quit = { path = "../craft-libs-common/crates/quit", features = ["egui"] }
+craft-menu = { path = "../craft-libs-common/crates/menu" }
 # Who draws the window frame, and an app-drawn strip as the title bar: storytold/craft-libs, MIT OR Apache-2.0.
-craft-window = { git = "https://github.com/storytold/craft-libs", rev = "6e03f65bf45181db77ba6229716e6624db9eb25b", features = ["egui"] }
+craft-window = { path = "../craft-libs-common/crates/window", features = ["egui"] }
 # Release checks and self-updates for the desktop app: storytold/craft-libs, MIT OR Apache-2.0.
-craft-update = { git = "https://github.com/storytold/craft-libs", rev = "6e03f65bf45181db77ba6229716e6624db9eb25b", features = ["egui"] }
+craft-update = { path = "../craft-libs-common/crates/update", features = ["egui"] }
 
 # egui 0.37 and winit: the suite's forks (storytold/egui, storytold/winit), as craft-libs pins them.
 [patch.crates-io]
